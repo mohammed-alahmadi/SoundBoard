@@ -1,5 +1,6 @@
 package soundboard;
 
+
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.GridLayout;
@@ -43,7 +44,9 @@ import javax.swing.filechooser.FileNameExtensionFilter;
  *  @author David
  */
 public class SoundBoard extends JPanel implements ActionListener, ListSelectionListener{
-private static final int DEFAULT_WIDTH = 800;                       //default application window width
+    
+    
+    private static final int DEFAULT_WIDTH = 800;                    //default application window width
     private static final int DEFAULT_HEIGHT = 600;                  //default application window height
     private static final int DEFAULT_PATH_LIST_ITEM_DISPLAY = 8;    //default list item display
 
@@ -69,7 +72,6 @@ private static final int DEFAULT_WIDTH = 800;                       //default ap
         super(new BorderLayout());
         setPreferredSize(new Dimension(DEFAULT_WIDTH, DEFAULT_HEIGHT));
         this.frame = frame;
-        
 
         //create application menu bar and file menu
         JMenuBar menuBar = new JMenuBar();
@@ -139,12 +141,17 @@ private static final int DEFAULT_WIDTH = 800;                       //default ap
         
         add(soundAssignmentPanel, BorderLayout.NORTH);
 
-
-
+        //create 4x4 audio clip sound board assignment and playback panels
+        TitledBorder soundBoardTitledBorder = BorderFactory.createTitledBorder("Sound Board");
+        JPanel soundBoardPanel = new JPanel(new GridLayout(4, 4));
+        for (int i = 0; i < 16; i++) {
+            soundBoardPanel.add(new SoundPanel(this));
+        }
+        soundBoardPanel.setBorder(soundBoardTitledBorder);
+        add(soundBoardPanel, BorderLayout.CENTER);
        
 
-        //application state persistence thread (saves application state to file), 
-        //called when application is shutdown
+        //application state persistence thread (saves application state to file), called when application is shutdown
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
@@ -198,7 +205,7 @@ private static final int DEFAULT_WIDTH = 800;                       //default ap
 
     @Override
     public void valueChanged(ListSelectionEvent e) {
-       // ignore display list value adjusting events to prevent doublling up
+        // ignore display list value adjusting events to prevent doublling up
         // when responding to value has changed events
         if (!e.getValueIsAdjusting()) {
             // source is audio clips path display list
