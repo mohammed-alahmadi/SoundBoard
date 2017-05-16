@@ -181,6 +181,7 @@ public class SoundBoard extends JPanel implements ActionListener, ListSelectionL
             
             
         //remove audio clips path event
+        //remove audio clips path event
         } 
         else if (e.getSource() == removeFilePathMenuItem){
             
@@ -207,6 +208,7 @@ public class SoundBoard extends JPanel implements ActionListener, ListSelectionL
     public void valueChanged(ListSelectionEvent e) {
         // ignore display list value adjusting events to prevent doublling up
         // when responding to value has changed events
+        // ignore display list value adjusting events to prevent doublling up
         if (!e.getValueIsAdjusting()) {
             // source is audio clips path display list
             if (e.getSource() == pathList) {
