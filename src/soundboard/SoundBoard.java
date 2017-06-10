@@ -1,6 +1,5 @@
 package soundboard;
 
-
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.GridLayout;
@@ -13,6 +12,7 @@ import java.io.File;
 import java.io.FileFilter;
 import java.util.ArrayList;
 import javax.sound.sampled.AudioFileFormat;
+import javax.sound.sampled.AudioFileFormat.Type;
 import javax.sound.sampled.AudioSystem;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListModel;
@@ -22,16 +22,19 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JMenu;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
+import javax.swing.JSpinner.DefaultEditor;
 import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.SpinnerModel;
 import javax.swing.SpinnerNumberModel;
-import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 import javax.swing.border.TitledBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -40,13 +43,14 @@ import javax.swing.event.ListSelectionListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 /**
- *  @author mohammed
- *  @author David
+ *
+ * @author mohammed
+ * @author David
+ *
  */
-public class SoundBoard extends JPanel implements ActionListener, ListSelectionListener{
-    
-    
-    private static final int DEFAULT_WIDTH = 800;                    //default application window width
+public class SoundBoard extends JPanel implements ActionListener, ListSelectionListener, ChangeListener {
+
+    private static final int DEFAULT_WIDTH = 800;                   //default application window width
     private static final int DEFAULT_HEIGHT = 600;                  //default application window height
     private static final int DEFAULT_PATH_LIST_ITEM_DISPLAY = 8;    //default list item display
 
@@ -55,18 +59,22 @@ public class SoundBoard extends JPanel implements ActionListener, ListSelectionL
     private final JMenuItem addFilePathMenuItem;                    //add file path file menu item
     private final JMenuItem removeFilePathMenuItem;                 //remove file path file menu item
     private final JMenuItem exitMenuItem;                           //exit application file menu item
-    
+
     //audio clip directory path display list and model
     private final DefaultListModel pathListModel;
     private final JList pathList;
-     
+
     //audio clip file display list and model
     private final DefaultListModel fileListModel;
     private final JList fileList;
-    
+
+    private final JButton soundLoopButton;                          //enable/disable audio clip loop play back
+    private final JButton soundStopButton;                          //stop audio clip play back
+    private final JSpinner soundPlaySpeedSpinner;                   //audio clip playback speed adjustment
+
     private File[] files;                                           //current displayed audio clip files
- 
-    
+    private File file;                                              //current selected audio clip file from current displayed audio clip files
+
     public SoundBoard(JFrame frame) {
         //set top-level panel layout behaviour and dimensions
         super(new BorderLayout());
@@ -124,7 +132,7 @@ public class SoundBoard extends JPanel implements ActionListener, ListSelectionL
         pathList.addListSelectionListener(this);
         JScrollPane pathListScroller = new JScrollPane(pathList);
         filePathPanel.add(pathListScroller);
-        
+
         //create display list for audio clip files
         TitledBorder soundsFilesTitledBorder = BorderFactory.createTitledBorder("Sound Files");
         JPanel soundsFilePanel = new JPanel(new GridLayout(1, 1));
@@ -138,7 +146,7 @@ public class SoundBoard extends JPanel implements ActionListener, ListSelectionL
         fileList.addListSelectionListener(this);
         JScrollPane fileListScroller = new JScrollPane(fileList);
         soundsFilePanel.add(fileListScroller);
-        
+
         add(soundAssignmentPanel, BorderLayout.NORTH);
 
         //create 4x4 audio clip sound board assignment and playback panels
@@ -149,7 +157,31 @@ public class SoundBoard extends JPanel implements ActionListener, ListSelectionL
         }
         soundBoardPanel.setBorder(soundBoardTitledBorder);
         add(soundBoardPanel, BorderLayout.CENTER);
-       
+
+        //create sound control panel for audio clip loop, stop, and speed controls
+        TitledBorder soundControlTitledBorder = BorderFactory.createTitledBorder("Sound Control");
+        JPanel soundControlPanel = new JPanel(new GridLayout(1, 3));
+        soundControlPanel.setBorder(soundControlTitledBorder);
+        soundLoopButton = new JButton("Loop");
+        soundLoopButton.addActionListener(this);
+        soundControlPanel.add(soundLoopButton);
+        soundStopButton = new JButton("Stop");
+        soundStopButton.addActionListener(this);
+        soundControlPanel.add(soundStopButton);
+        JPanel soundPlaySpeedPanel = new JPanel(new GridLayout(1, 2));
+        JLabel soundPlaySpeedLabel = new JLabel("Playback Speed:");
+        soundPlaySpeedPanel.add(soundPlaySpeedLabel);
+        SpinnerModel playSpeedSpinnerModel
+                = new SpinnerNumberModel(3, //initial value
+                        1, //min
+                        10, //max
+                        1);  //step
+        soundPlaySpeedSpinner = new JSpinner(playSpeedSpinnerModel);
+        ((DefaultEditor) soundPlaySpeedSpinner.getEditor()).getTextField().setEditable(false);
+        soundPlaySpeedSpinner.addChangeListener(this);
+        soundPlaySpeedPanel.add(soundPlaySpeedSpinner);
+        soundControlPanel.add(soundPlaySpeedPanel);
+        add(soundControlPanel, BorderLayout.SOUTH);
 
         //application state persistence thread (saves application state to file), called when application is shutdown
         Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -160,46 +192,42 @@ public class SoundBoard extends JPanel implements ActionListener, ListSelectionL
         });
     }
 
-    
+    //method to get currently selected audio clip file
+    File getFile() {
+        return file;
+    }
 
-    
-   @Override
+    @Override
     public void actionPerformed(ActionEvent e) {
-        
-        
-        //adding audio clips path event
-        if (e.getSource() == addFilePathMenuItem){
-            
+
+        //add audio clips path event
+        if (e.getSource() == addFilePathMenuItem) {
             JFileChooser fileChooser = new JFileChooser();
             fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
             int returnVal = fileChooser.showOpenDialog(this);
-            
-            if (returnVal == JFileChooser.APPROVE_OPTION){
-                
+            if (returnVal == JFileChooser.APPROVE_OPTION) {
                 pathListModel.addElement(fileChooser.getSelectedFile().getAbsolutePath());
             }
-            
-            
-        //remove audio clips path event
-        //remove audio clips path event
-        } 
-        else if (e.getSource() == removeFilePathMenuItem){
-            
+            //remove audio clips path event
+        } else if (e.getSource() == removeFilePathMenuItem) {
             int pathIndex = pathList.getSelectedIndex();
-            
-            if (pathIndex != -1){
-                
+            if (pathIndex != -1) {
                 pathListModel.remove(pathIndex);
-                
-                if (pathListModel.isEmpty()){
-                    
+                if (pathListModel.isEmpty()) {
                     fileListModel.removeAllElements();
                 }
             }
-        //application exit event from file menu
-        } 
-        else if (e.getSource() == exitMenuItem){
-            
+            //application exit event from file menu
+        } else if (e.getSource() == exitMenuItem) {
+            frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
+            //enbale/disable audio clip loop playback event
+        } else if (e.getSource() == soundLoopButton) {
+
+            //stop audio clip playback event
+        } else if (e.getSource() == soundStopButton) {
+
+        } else if (e.getSource() == exitMenuItem) {
+
             frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
         }
     }
@@ -208,7 +236,6 @@ public class SoundBoard extends JPanel implements ActionListener, ListSelectionL
     public void valueChanged(ListSelectionEvent e) {
         // ignore display list value adjusting events to prevent doublling up
         // when responding to value has changed events
-        // ignore display list value adjusting events to prevent doublling up
         if (!e.getValueIsAdjusting()) {
             // source is audio clips path display list
             if (e.getSource() == pathList) {
@@ -241,15 +268,24 @@ public class SoundBoard extends JPanel implements ActionListener, ListSelectionL
                         }
                     }
                 }
-            
-            } 
-
+                // source is audio clips file display list
+            } else if (e.getSource() == fileList) {
+                // ensure audio clip file is selected
+                if (fileList.getSelectedIndex() != -1) {
+                    // reference to currently selected audio clip file from current audio clip file array
+                    file = files[fileList.getSelectedIndex()];
+                }
+            }
         }
     }
-    
-    
-    
-    /*
+
+    @Override
+    public void stateChanged(ChangeEvent e) {
+        // audio clip playback speed event handler
+
+    }
+
+    /**
      * @param args the command line arguments
      */
     public static void main(String[] args) {
@@ -275,5 +311,4 @@ public class SoundBoard extends JPanel implements ActionListener, ListSelectionL
             }
         });
     }
-
 }
